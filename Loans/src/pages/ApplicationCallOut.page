@@ -1,0 +1,293 @@
+<apex:page controller="ApplicationCallOutCont">
+    <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"/>
+    <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"/>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.7.2/themes/ui-lightness/jquery-ui.css" type="text/css" media="all" />
+    <apex:includeScript value="{!URLFOR($Resource.toastr, '/toastr/toastr.js')}"/>
+    <apex:stylesheet value="{!URLFOR($Resource.toastr, '/toastr/toastr.css')}"/>
+    <script type="text/javascript">
+        $j = jQuery.noConflict();
+        var LoadingPopup;
+        $j(document).ready(function () {
+            LoadingPopup = $j( "#loading-popup" ).dialog({
+                autoOpen: false,
+                modal: true,
+                position: { my: "center", at: "centre", of: window },
+                width: 400,
+                height:65,
+                resizable: false,
+                closeOnEscape: false,
+                dialogClass: "no-titlebar"
+            });
+            LoadingPopup.dialog("open");
+        });
+
+        toastr.options = {
+            "closeButton": false,
+            "debug": false,
+            "progressBar": false,
+            "positionClass": "toast-top-center",
+            "onclick": null,
+            "showDuration": "300",
+            "hideDuration": "1000",
+            "timeOut": "3000",
+            "extendedTimeOut": "0",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        }
+
+        function toast(){
+            toastr.success('Application updated successfully.<br/> Next Application is displayed.');
+            LoadingPopup.dialog("open");
+        }
+        function toastIfNoErrors(){
+            if($j(".errorMsg").size() == 0){
+                toast();
+            }else{
+                var error_text = '';
+                $j(".errorMsg").each(function(){error_text += $j(this).text() + '<br/>'});
+                toastr.error(error_text);
+            }
+        }
+    </script>
+
+    <apex:form id="MainForm">
+        <apex:pageBlock title="Queue Summary" id="QueueSummary">
+            <apex:pageBlockSection columns="1">
+                <apex:outputText label="Number of applications in the queue" value="{!TotalNumberOfApps}"/>
+                <apex:outputText label="Number who have had call 1 in current shift" value="{!NumberOfAppsWithOneCallout}"/>
+                <apex:outputText label="Number who have had call 2 in current shift" value="{!NumberOfAppsWithTwoCallouts}"/>
+                <apex:outputText label="Updated at" value="{!LastUpdated}"/>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+
+        <apex:outputPanel id="MainPanel">
+            <apex:pageMessage rendered="{!Application == null}" severity="info" summary="There are currently no applications available to call. Try again later." strength="2"/>
+            <apex:outputPanel rendered="{!Application != null}">
+                <apex:sectionHeader title="Application" subtitle="{!Application.Name}"/>
+                <apex:actionFunction action="{!lockApplication}" name="lockApplicationJS" immediate="true" reRender="MainForm"/>
+
+                <apex:pageBlock mode="maindetail">
+                    <apex:pageBlockSection columns="2">
+                        <apex:outputField value="{!Application.Loan_Amount__c}"/>
+                        <apex:outputField value="{!Application.Application_Type__c}"/>
+                        <apex:outputField value="{!Application.Loan_Purpose__c}"/>
+                        <apex:outputField value="{!Application.LTV__c}"/>
+                        <apex:outputField value="{!Application.CreatedDate}"/>
+                        <apex:pageBlockSectionItem />
+                        <apex:outputField value="{!Application.Account__c}"/>
+                    </apex:pageBlockSection>
+                    <!-- <apex:pageBlockSection columns="2" title="Debug Info">
+                        <apex:outputField value="{!Application.Last_Call_Out_Date__c}"/>
+                        <apex:outputField value="{!Application.Do_Not_Call_Out_Until_Date__c}"/>
+                        <apex:outputField value="{!Application.Locked_Date__c}"/>
+                        <apex:outputField value="{!Application.Callout_Attempts_Current_Shift__c}"/>
+                        <apex:outputText value="{!IsApplicationAccessSecured}" label="IsApplicationAccessSecured"/>
+                        <apex:outputText value="{!TimesIQueriedTheSameApp}" label="TimesIQueriedTheSameApp"/>
+                        <apex:outputField value="{!Application.Locked_to__c}"/>
+                    </apex:pageBlockSection> -->
+                </apex:pageBlock>
+                <apex:pageBlock title="Applicants">
+                    <apex:outputPanel layout="block" styleClass="noRecordsToDisplay" rendered="{!Application.Applicants__r.size == 0}">No records to display</apex:outputPanel>
+                    <apex:pageBlockTable value="{!Application.Applicants__r}" var="applicant" rendered="{!Application.Applicants__r.size != 0}">
+                        <apex:column value="{!applicant.First_Name__c} {!applicant.Last_Name__c}" headerValue="Name"/>
+                        <apex:column value="{!applicant.Mobile_Phone__c}"/>
+                        <apex:column value="{!applicant.Home_Phone__c}"/>
+                    </apex:pageBlockTable>
+                </apex:pageBlock>
+                <apex:pageBlock mode="maindetail">
+                    <apex:pageBlockSection columns="2">
+                        <apex:outputPanel layout="block" style="margin-left:-10px;">
+                            <apex:pageBlock title="Case Notes">
+                                <apex:outputPanel layout="block" styleClass="noRecordsToDisplay" rendered="{!Application.Case_Notes__r.size == 0}">No records to display</apex:outputPanel>
+                                <apex:pageBlockTable value="{!Application.Case_Notes__r}" var="note" rendered="{!Application.Case_Notes__r.size != 0}">
+                                    <apex:column value="{!note.CreatedById}"/>
+                                    <apex:column value="{!note.CreatedDate}"/>
+                                    <apex:column value="{!note.Note__c}"/>
+                                </apex:pageBlockTable>
+                            </apex:pageBlock>
+                        </apex:outputPanel>
+                        <apex:outputPanel layout="block">
+                            <table>
+                                <apex:actionRegion >
+                                    <tr>
+                                        <td>
+                                            <apex:actionStatus id="LoadingStatus0">
+                                                <apex:facet name="stop">
+                                                    <apex:commandButton action="/apex/skuid__ui?page=EditApplication2&id={!Application.Id}" style="width:130px;" value="Take Application" status="LoadingStatus0" immediate="true"/>
+                                                </apex:facet>
+                                                <apex:facet name="start">
+                                                    <apex:outputPanel >
+                                                        <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                                                        <apex:commandButton value="Loading..." disabled="true"/>
+                                                    </apex:outputPanel>
+                                                </apex:facet>
+                                            </apex:actionStatus>
+                                        </td>
+                                        <td style="vertical-align:middle; padding:0px 20px 0px 30px;">
+                                            <div style="position:absolute;">
+                                                <apex:outputLabel value="Additional Note Details" for="AdditionalNote" style="font-weight:bold;"/><br/>
+                                                <apex:inputTextarea value="{!AdditionalNoteDetail}" id="AdditionalNote" rows="5" style="width:285px; max-height:100px;"/>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <apex:actionStatus id="LoadingStatus1">
+                                                <apex:facet name="stop">
+                                                    <apex:commandButton action="/apex/skuid__ui?page=AddEditApplication&id={!Application.Id}" style="width:130px;" value="Take Application New" status="LoadingStatus1" immediate="true"/>
+                                                </apex:facet>
+                                                <apex:facet name="start">
+                                                    <apex:outputPanel >
+                                                        <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                                                        <apex:commandButton value="Loading..." disabled="true"/>
+                                                    </apex:outputPanel>
+                                                </apex:facet>
+                                            </apex:actionStatus>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <apex:actionStatus id="LoadingStatus2">
+                                                <apex:facet name="stop">
+                                                    <apex:commandButton action="{!actionLeftVM}" style="width:130px;" value="Left VM" reRender="MainForm" status="LoadingStatus2" oncomplete="toastIfNoErrors();"/>
+                                                </apex:facet>
+                                                <apex:facet name="start">
+                                                    <apex:outputPanel >
+                                                        <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                                                        <apex:commandButton value="Loading..." disabled="true"/>
+                                                    </apex:outputPanel>
+                                                </apex:facet>
+                                            </apex:actionStatus>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <apex:actionStatus id="LoadingStatus3">
+                                                <apex:facet name="stop">
+                                                    <apex:commandButton action="{!actionNoAnswer}" style="width:130px;" value="No Answer" reRender="MainForm" status="LoadingStatus3" oncomplete="toastIfNoErrors();"/>
+                                                </apex:facet>
+                                                <apex:facet name="start">
+                                                    <apex:outputPanel >
+                                                        <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                                                        <apex:commandButton value="Loading..." disabled="true"/>
+                                                    </apex:outputPanel>
+                                                </apex:facet>
+                                            </apex:actionStatus>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <apex:actionStatus id="LoadingStatus4">
+                                                <apex:facet name="stop">
+                                                    <apex:commandButton action="{!actionInvalidNumber}" style="width:130px;" value="Invalid Number" reRender="MainForm" status="LoadingStatus4" oncomplete="toastIfNoErrors();"/>
+                                                </apex:facet>
+                                                <apex:facet name="start">
+                                                    <apex:outputPanel >
+                                                        <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                                                        <apex:commandButton value="Loading..." disabled="true"/>
+                                                    </apex:outputPanel>
+                                                </apex:facet>
+                                            </apex:actionStatus>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <apex:actionStatus id="LoadingStatus5">
+                                                <apex:facet name="stop">
+                                                    <apex:commandButton action="{!actionSetCallBack}" style="width:130px;" value="Set Call Back" reRender="MainForm" status="LoadingStatus5" oncomplete="toastIfNoErrors();"/>
+                                                </apex:facet>
+                                                <apex:facet name="start">
+                                                    <apex:outputPanel >
+                                                        <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                                                        <apex:commandButton value="Loading..." disabled="true"/>
+                                                    </apex:outputPanel>
+                                                </apex:facet>
+                                            </apex:actionStatus>
+                                        </td>
+                                        <td style="vertical-align:middle;">
+                                            <div style="margin-left:30px;">
+                                                <apex:inputField value="{!DateHolderApp.Do_Not_Call_Out_Until_Date__c}"/>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </apex:actionRegion>
+                                <tr>
+                                    <td>
+                                        <apex:actionStatus id="LoadingStatus6">
+                                            <apex:facet name="stop">
+                                                <apex:commandButton action="{!actionCancelApplication}" style="width:130px;" value="Cancel Application" reRender="MainForm" status="LoadingStatus6" oncomplete="toastIfNoErrors();"/>
+                                            </apex:facet>
+                                            <apex:facet name="start">
+                                                <apex:outputPanel >
+                                                    <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                                                    <apex:commandButton value="Loading..." disabled="true"/>
+                                                </apex:outputPanel>
+                                            </apex:facet>
+                                        </apex:actionStatus>
+                                    </td>
+                                    <td style="vertical-align:middle;">
+                                        <apex:outputLabel value="Select Reason" for="CancelReason" style="font-weight:bold; padding:0px 20px 0px 30px;"/>
+                                        <apex:outputPanel style="display:inline-table;">
+                                            <apex:inputField value="{!Application.Cancellation_Reason__c}" required="true" id="CancelReason"/>
+                                        </apex:outputPanel>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <apex:actionStatus id="LoadingStatus7">
+                                            <apex:facet name="stop">
+                                                <apex:commandButton action="{!actionSkip}" style="width:130px;" value="Skip Application" reRender="MainForm" status="LoadingStatus7" immediate="true" oncomplete="toast();"/>
+                                            </apex:facet>
+                                            <apex:facet name="start">
+                                                <apex:outputPanel >
+                                                    <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                                                    <apex:commandButton value="Loading..." disabled="true"/>
+                                                </apex:outputPanel>
+                                            </apex:facet>
+                                        </apex:actionStatus>
+                                    </td>
+                                </tr>
+                            </table>
+                        </apex:outputPanel>
+                    </apex:pageBlockSection>
+                </apex:pageBlock>
+            </apex:outputPanel>
+        </apex:outputPanel>
+
+        <div id="loading-popup" style="display:none;">
+            <p align="center" style='{font-family:"Arial", Helvetica, sans-serif; font-size:20px;}'>
+                <apex:image value="/img/loading.gif" />&nbsp;Securing exclusive access to the application
+            </p>
+        </div>
+
+        <script>
+            if({!NOT(IsApplicationAccessSecured)}){
+                setTimeout(lockApplicationJS, 1500);
+            }else{
+                LoadingPopup.dialog("close");
+            }
+        </script>
+    </apex:form>
+
+    <style>
+        .noRecordsToDisplay{
+            border:1px solid #e0e3e5;
+            padding:5px 2px 4px 5px;
+        }
+        .toast-top-center {
+            top: 297px;
+        }
+        .ui-dialog {
+            z-index: 9999;
+        }
+        .no-titlebar .ui-dialog-titlebar {
+            display: none;
+        }
+        .ui-widget-overlay {
+            position: fixed;
+            z-index: 999;
+        }
+    </style>
+</apex:page>

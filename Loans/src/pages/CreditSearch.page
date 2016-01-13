@@ -1,0 +1,159 @@
+<apex:page showHeader="false" sidebar="false" standardController="Application__c" extensions="CreditSearchExtension" title="Application Credit Search">
+    <apex:sectionHeader title="Application" subtitle="{!Application__c.Name}"/>
+
+    <apex:form id="MainForm">
+        <apex:pageMessages />
+        <apex:pageBlock >
+            <apex:pageBlockButtons location="bottom">
+                <apex:actionStatus id="LoadingStatus">
+                    <apex:facet name="stop">
+                        <apex:commandButton value="Submit Credit Search" action="{!executeCreditSearch}" status="LoadingStatus" reRender="MainForm"/>
+                    </apex:facet>
+                    <apex:facet name="start">
+                        <apex:outputPanel >
+                            <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                            <apex:commandButton value="Loading..." disabled="true"/>
+                        </apex:outputPanel>
+                    </apex:facet>
+                </apex:actionStatus>
+           </apex:pageBlockButtons>
+        </apex:pageBlock>
+
+        <apex:pageBlock id="CreditSearchResults" rendered="{!DisplayCreditSearchResults}">
+            <apex:pageBlockSection title="CCJs" columns="1">
+                <apex:pageMessage rendered="{!NOT(DisplayCCJ)}" severity="info" summary="No records to display" strength="2"/>
+                <apex:pageMessage rendered="{!DisplayMergeMessageCCJ}" severity="info" summary="Select ONE record to overwrite" strength="2"/>
+                <apex:outputPanel rendered="{!DisplayMergeMessageCCJ}">
+                    <apex:commandButton value="Confirm merge" action="{!confirmMerge}" reRender="MainForm" style="margin-right:10px;"/>
+                    <apex:commandButton value="Cancel" action="{!cancelMerge}" reRender="MainForm"/>
+                </apex:outputPanel>
+                <apex:pageBlockTable value="{!ReportedCCJs}" var="w" rendered="{!DisplayCCJ}" columnsWidth="100px,100px">
+                    <apex:column headerValue="Select to Insert">
+                        <apex:inputCheckbox value="{!w.IsSelectedForInsertion}" rendered="{!w.IsCreditSearchData && w.Record.Id == null}"/>
+                    </apex:column>
+                    <apex:column headerValue="Select to Merge" rendered="{!DisplayMergeMessageCCJ}">
+                        <apex:inputCheckbox value="{!w.IsSelectedForMerge}" rendered="{!NOT(w.IsCreditSearchData)}"/>
+                    </apex:column>
+                    <apex:column headerValue="Action">
+                        <apex:commandButton value="{!IF(w.Record.Id == null, 'Insert', 'Inserted')}" action="{!insertSelectedSObject}" status="InsertStatus"
+                            disabled="{!w.Record.Id != null || DisplayMergeMessageCCJ}" reRender="MainForm" immediate="true" rendered="{!w.IsCreditSearchData}">
+                            <apex:param name="SelectedRecordIndex" value="{!w.UniqueIndex}" assignTo="{!SelectedRecordIndex}"/>
+                        </apex:commandButton>
+                    </apex:column>
+
+                    <apex:column headerValue="Action">
+                        <apex:commandButton value="{!IF(w.IsMerging, 'Merging', IF(!w.IsMerged, 'Merge', 'Merged'))}" action="{!showMergeUIForSelectedSObject}" status="MergeStatus"
+                            disabled="{!w.IsMerged || w.IsMerging || w.Record.Id != null}" reRender="MainForm" immediate="true" rendered="{!w.IsCreditSearchData && (NOT(DisplayMergeMessageCCJ) || w.IsMerging)}">
+                            <apex:param name="SelectedRecordIndex" value="{!w.UniqueIndex}" assignTo="{!SelectedRecordIndex}"/>
+                        </apex:commandButton>
+                    </apex:column>
+
+                    <apex:column value="{!w.Record.CRS_Data__c}"/>
+                    <apex:column value="{!w.Record.Settled__c}"/>
+                    <apex:column value="{!w.Record.Judgement_Date__c}"/>
+                    <apex:column value="{!w.Record.Value__c}"/>
+                </apex:pageBlockTable>
+            </apex:pageBlockSection>
+
+            <apex:pageBlockSection title="Mortgages" columns="1">
+                <apex:pageMessage rendered="{!NOT(DisplayMortgage)}" severity="info" summary="No records to display" strength="2"/>
+                <apex:pageMessage rendered="{!DisplayMergeMessageMortgage}" severity="info" summary="Select ONE record to overwrite" strength="2"/>
+                <apex:outputPanel rendered="{!DisplayMergeMessageMortgage}">
+                    <apex:commandButton value="Confirm merge" action="{!confirmMerge}" reRender="MainForm" style="margin-right:10px;"/>
+                    <apex:commandButton value="Cancel" action="{!cancelMerge}" reRender="MainForm"/>
+                </apex:outputPanel>
+                <apex:pageBlockTable value="{!ReportedMortgages}" var="w" rendered="{!DisplayMortgage}" columnsWidth="100px,100px">
+                    <apex:column headerValue="Select to Insert">
+                        <apex:inputCheckbox value="{!w.IsSelectedForInsertion}" rendered="{!w.IsCreditSearchData && w.Record.Id == null}"/>
+                    </apex:column>
+                    <apex:column headerValue="Select to Merge" rendered="{!DisplayMergeMessageMortgage}">
+                        <apex:inputCheckbox value="{!w.IsSelectedForMerge}" rendered="{!NOT(w.IsCreditSearchData)}"/>
+                    </apex:column>
+                    <apex:column headerValue="Action">
+                        <apex:commandButton value="{!IF(w.Record.Id == null, 'Insert', 'Inserted')}" action="{!insertSelectedSObject}" status="InsertStatus"
+                            disabled="{!w.Record.Id != null || DisplayMergeMessageMortgage}" reRender="MainForm" immediate="true" rendered="{!w.IsCreditSearchData}">
+                            <apex:param name="SelectedRecordIndex" value="{!w.UniqueIndex}" assignTo="{!SelectedRecordIndex}"/>
+                        </apex:commandButton>
+                    </apex:column>
+
+                    <apex:column headerValue="Action">
+                        <apex:commandButton value="{!IF(w.IsMerging, 'Merging', IF(!w.IsMerged, 'Merge', 'Merged'))}" action="{!showMergeUIForSelectedSObject}" status="MergeStatus"
+                            disabled="{!w.IsMerged || w.IsMerging || w.Record.Id != null}" reRender="MainForm" immediate="true" rendered="{!w.IsCreditSearchData && (NOT(DisplayMergeMessageMortgage) || w.IsMerging)}">
+                            <apex:param name="SelectedRecordIndex" value="{!w.UniqueIndex}" assignTo="{!SelectedRecordIndex}"/>
+                        </apex:commandButton>
+                    </apex:column>
+
+                    <apex:column value="{!w.Record.CRS_Data__c}"/>
+                    <apex:column value="{!w.Record.Arrears_in_Last_3_Months__c}"/>
+                    <apex:column value="{!w.Record.Arrears_in_Last_6_Months__c}"/>
+                    <apex:column value="{!w.Record.Arrears_in_last_12_Months__c}"/>
+                    <apex:column value="{!w.Record.Arrears_in_Last_24_Months__c}"/>
+                    <apex:column value="{!w.Record.Arrears_in_Last_36_Months__c}"/>
+                    <apex:column value="{!w.Record.Repayment_Profile__c}"/>
+                    <apex:column value="{!w.Record.Current_Status__c}"/>
+                    <apex:column value="{!w.Record.Balance__c}"/>
+                    <apex:column value="{!w.Record.Mortgage_Company__c}"/>
+                </apex:pageBlockTable>
+            </apex:pageBlockSection>
+
+            <apex:pageBlockSection title="Debts" columns="1">
+                <apex:pageMessage rendered="{!NOT(DisplayDebt)}" severity="info" summary="No records to display" strength="2"/>
+                <apex:pageMessage rendered="{!DisplayMergeMessageDebt}" severity="info" summary="Select ONE record to overwrite" strength="2"/>
+                <apex:outputPanel rendered="{!DisplayMergeMessageDebt}">
+                    <apex:commandButton value="Confirm merge" action="{!confirmMerge}" reRender="MainForm" style="margin-right:10px;"/>
+                    <apex:commandButton value="Cancel" action="{!cancelMerge}" reRender="MainForm"/>
+                </apex:outputPanel>
+                <apex:pageBlockTable value="{!ReportedDebts}" var="w" rendered="{!DisplayDebt}" columnsWidth="100px,100px">
+                    <apex:column headerValue="Select to Insert">
+                        <apex:inputCheckbox value="{!w.IsSelectedForInsertion}" rendered="{!w.IsCreditSearchData && w.Record.Id == null}"/>
+                    </apex:column>
+                    <apex:column headerValue="Select to Merge" rendered="{!DisplayMergeMessageDebt}">
+                        <apex:inputCheckbox value="{!w.IsSelectedForMerge}" rendered="{!NOT(w.IsCreditSearchData)}"/>
+                    </apex:column>
+                    <apex:column headerValue="Action">
+                        <apex:commandButton value="{!IF(w.Record.Id == null, 'Insert', 'Inserted')}" action="{!insertSelectedSObject}" status="InsertStatus"
+                            disabled="{!w.Record.Id != null || DisplayMergeMessageDebt}" reRender="MainForm" immediate="true" rendered="{!w.IsCreditSearchData}">
+                            <apex:param name="SelectedRecordIndex" value="{!w.UniqueIndex}" assignTo="{!SelectedRecordIndex}"/>
+                        </apex:commandButton>
+                    </apex:column>
+
+                    <apex:column headerValue="Action">
+                        <apex:commandButton value="{!IF(w.IsMerging, 'Merging', IF(!w.IsMerged, 'Merge', 'Merged'))}" action="{!showMergeUIForSelectedSObject}" status="MergeStatus"
+                            disabled="{!w.IsMerged || w.IsMerging || w.Record.Id != null}" reRender="MainForm" immediate="true" rendered="{!w.IsCreditSearchData && (NOT(DisplayMergeMessageDebt) || w.IsMerging)}">
+                            <apex:param name="SelectedRecordIndex" value="{!w.UniqueIndex}" assignTo="{!SelectedRecordIndex}"/>
+                        </apex:commandButton>
+                    </apex:column>
+
+                    <apex:column value="{!w.Record.CRS_Data__c}"/>
+                    <apex:column value="{!w.Record.Highest_Arrears_In_12_Months__c}"/>
+                    <apex:column value="{!w.Record.Highest_Arrears_In_24_Months__c}"/>
+                    <apex:column value="{!w.Record.Current_Status__c}"/>
+                    <apex:column value="{!w.Record.Amount_Outstanding__c}"/>
+                    <apex:column value="{!w.Record.Account_Type__c}"/>
+                    <apex:column value="{!w.Record.Monthly_Repayment__c}"/>
+                    <apex:column value="{!w.Record.Repayment_Profile__c}"/>
+                    <apex:column value="{!w.Record.Default_Date__c}"/>
+                    <apex:column value="{!w.Record.Last_Updated_Date__c}"/>
+                    <apex:column value="{!w.Record.Settled_Date__c}"/>
+                    <apex:column value="{!w.Record.Creditor__c}"/>
+                </apex:pageBlockTable>
+            </apex:pageBlockSection>
+
+            <apex:pageBlockButtons location="bottom">
+                <apex:actionStatus id="insertAllSelectedRecordsStatus">
+                    <apex:facet name="stop">
+                        <apex:commandButton value="Insert ALL Selected Records" action="{!insertAllSelectedRecords}" status="insertAllSelectedRecordsStatus" reRender="CreditSearchResults"/>
+                    </apex:facet>
+                    <apex:facet name="start">
+                        <apex:outputPanel >
+                            <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                            <apex:commandButton value="Inserting..." disabled="true"/>
+                        </apex:outputPanel>
+                    </apex:facet>
+                </apex:actionStatus>
+            </apex:pageBlockButtons>
+        </apex:pageBlock>
+
+        <apex:inputHidden value="{!Application__c.CRS_Report_Id__c}" />
+    </apex:form>
+</apex:page>

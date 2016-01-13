@@ -1,0 +1,19 @@
+{
+    "username": "jorge.delgado@smartlabs.me.dev", 
+    "environment": "sandbox", 
+    "project_name": "Loans", 
+    "workspace": "C:\\Test repository\\Loan.co.uk\\SalesforceLoan.co.uk", 
+    "org_url": "", 
+    "namespace": "", 
+    "id": "TROU7J0SSYGS29IRFXEJV6VRX3TY95WD", 
+    "metadata_container": "1dcJ0000000KtTEIA0", 
+    "subscription": [
+        "ApexClass", 
+        "ApexComponent", 
+        "ApexPage", 
+        "ApexTrigger", 
+        "StaticResource", 
+        "CustomObject", 
+        "Profile"
+    ]
+}

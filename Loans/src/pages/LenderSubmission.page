@@ -1,0 +1,125 @@
+<apex:page showHeader="false" sidebar="false" standardController="Application__c" extensions="LenderSubmission">
+<script type="text/javascript">
+    function showSpinner()
+    {
+        document.getElementById('opaque').style.display='block';
+        var popUp = document.getElementById('spinner');
+        popUp.style.display = 'block';
+    }
+
+    function hideSpinner()
+    {
+        document.getElementById('opaque').style.display='none';
+        var popUp = document.getElementById('spinner');
+        popUp.style.display = 'none';
+    }
+</script>
+    <apex:form id="MainForm">
+        <apex:pageBlock title="Submit to Lender Application  {!Application__c.Name}">
+            <apex:pageMessages escape="false" />
+            <apex:repeat value="{!QuoteSubmissionResponses}" var="m">
+                <apex:pageMessage summary="{!m.summary}" severity="{!m.severity}" strength="2" escape="false"/>
+            </apex:repeat>
+
+            <apex:pageBlockSection columns="1">
+                <apex:pageBlockSectionItem rendered="{!HasLenderReference}">
+                    <apex:outputLabel value="Lender Reference" for="lender_ref" />
+                    <apex:outputText id="lender_ref" value="{!LenderReference}" />
+                </apex:pageBlockSectionItem>
+
+                <!-- <c:MultiselectPicklist LeftLabel="Available Lenders"
+                    OptionsLeft="{!LenderOptions}"
+                    RightLabel="Selected Lenders"
+                    OptionsRight="{!SelectedLenderOptions}"
+                    size="14"
+                    width="200px"/> -->
+
+                <apex:outputPanel id="setup_button" >
+                    <apex:commandButton value="Submit to Lenders" action="{!submitToLenderGateway}" rendered="{!hasQuote && CanSubmitToLender}" onclick="showSpinner()"  reRender="MainForm"/>
+                    <apex:commandButton value="Go to UnderWriting Wizard" action="/apex/UnderwritingWizard?id={!Id}" onclick="showSpinner()" style="margin-left:20px;"/>
+                    <div id="opaque" style="display:none" />
+                    <div id="spinner" style="display:none">
+                        <p align="center" style='{font-family:"Arial", Helvetica, sans-serif; font-size:20px;}'>
+                            <apex:image value="/img/loading.gif" />&nbsp;Please wait
+                        </p>
+                    </div>
+                </apex:outputPanel>
+            </apex:pageBlockSection>
+
+            <apex:pageBlockSection columns="1" title="Current Active Quote" collapsible="false" rendered="{!hasQuote}" id="active_quote">
+                <apex:pageBlockTable value="{!ActiveQuotes}" var="quote" rendered="{!hasQuote}">
+                    <apex:column value="{!quote.Name}" />
+                    <apex:column value="{!quote.Lender_Fee__r.Name}" />
+                    <apex:column value="{!quote.Lender_Plan__r.Plan_Name__c}" />
+                    <apex:column value="{!quote.Interest_Rate__c}" />
+                    <apex:column value="{!quote.APR__c}" />
+                    <apex:column value="{!quote.Lender_Fee__c}" />
+                    <apex:column value="{!quote.TT_Fee__c}" />
+                    <apex:column value="{!quote.Solicitors_Costs__c}" />
+                    <apex:column value="{!quote.Title_Insurance__c}" />
+                </apex:pageBlockTable>
+            </apex:pageBlockSection>
+
+            <apex:pageBlockSection columns="1" title="Available Products {!IF(IsSubmissionSuccessful, ' - ' + LenderIntegrationName, '')}" collapsible="false" rendered="{!ShowResults}">
+                <apex:pageBlockTable value="{!ProductRows}" var="row" id="products_table" >
+                    <apex:column headerValue="Select">
+                        <apex:commandButton action="{!row.selectProduct}" value="Select" disabled="{!ProductSelected}"/>
+                    </apex:column>
+                    <apex:column headerValue="Product Name" value="{!row.Product.Name}" />
+                    <apex:column headerValue="Product Code">
+                        <apex:outputText value="{!row.Product.Code}"/>
+                    </apex:column>
+                    <apex:column headerValue="Interest Rate %"  >
+                        <apex:outputText value="{0, number, ###.##%}">
+                            <apex:param value="{!row.Product.InterestRate  / 100}"/>
+                        </apex:outputText>
+                    </apex:column>
+                    <apex:column headerValue="Monthly Payment">
+                        <apex:outputText value="{0, number ,£###,###,##0.00}">
+                            <apex:param value="{!row.Product.MonthlyRepayment}"/>
+                        </apex:outputText>
+                    </apex:column>
+                    <apex:column headerValue="Reversion Rate" value="{!row.Product.ReversionRate}" />
+                    <apex:column headerValue="APR">
+                        <apex:outputText value="{0, number, ###.##%}">
+                            <apex:param value="{!row.Product.APR / 100}"/>
+                        </apex:outputText>
+                    </apex:column>
+                    <apex:column headerValue="Interest Charges" value="{!row.Product.InterestCharges}" />
+                    <apex:column headerValue="Settlement Amounts">
+                        <apex:outputText value="Period 1: {!row.Product.SettleAmountPeriod1}" /> <br />
+                        <apex:outputText value="Period 2: {!row.Product.SettleAmountPeriod2}" /> <br />
+                        <apex:outputText value="Period 3: {!row.Product.SettleAmountPeriod3}" />
+                    </apex:column>
+                    <apex:column headerValue="Lender Fee" value="{!row.Product.LenderFee}" />
+                    <apex:column headerValue="TT Fee" value="{!row.Product.TTFee}" />
+                    <apex:column headerValue="Title Insurance" value="{!row.Product.TitleInsurance}" />
+                    <apex:column headerValue="Solicitors Costs" value="{!row.Product.SolicitorsCosts}" />
+                    <apex:column headerValue="Primary" value="{!row.Product.IsPrimary}" />
+                </apex:pageBlockTable>
+            </apex:pageBlockSection>
+
+            <apex:pageBlockSection columns="1" title="Required Documents" collapsible="false" rendered="{!ShowResults}">
+                <apex:pageBlockTable value="{!Documents}" var="doc" id="docs_table" >
+                    <apex:column headerValue="Document Name">
+                        <apex:outputText value="{!doc.Name}"/>
+                    </apex:column>
+                    <apex:column headerValue="Reference Code">
+                        <apex:outputText value="{!doc.ReferenceCode}"/>
+                    </apex:column>
+                    <apex:column headerValue="Required">
+                        <apex:inputCheckbox value="{!doc.IsRequired}" disabled="true"/>
+                    </apex:column>
+                </apex:pageBlockTable>
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+        <apex:inputHidden value="{!Application__c.Broker_Fee__c}" />
+        <apex:actionFunction name="processSingleLenderGatewaySubmissionJS" action="{!processSingleLenderGatewaySubmission}" reRender="MainForm"/>
+        <apex:outputPanel rendered="{!IsSubmissionInProgress}">
+            <script>
+                setTimeout(processSingleLenderGatewaySubmissionJS, 10);
+                showSpinner();
+            </script>
+        </apex:outputPanel>
+    </apex:form>
+</apex:page>

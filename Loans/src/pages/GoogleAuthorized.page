@@ -1,0 +1,5 @@
+<apex:page showHeader="true" sidebar="true" controller="GoogleAuthorizedController" action="{!retrieveCodeAndRedirect}">
+    <apex:pageBlock >
+        <apex:pageMessages />
+    </apex:pageBlock>
+</apex:page>

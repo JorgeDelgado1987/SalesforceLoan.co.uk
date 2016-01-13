@@ -1,0 +1,24 @@
+<apex:page controller="CLGTest" action="{!doPost}">
+    Success?: {!jsonResponse.IsSuccessful} <br/><br/>
+    Documents: 
+    <apex:repeat value="{!jsonResponse.Documents}" var="data">       
+        Name: {!data.Name}<br/>
+        Required: {!data.IsRequired}<br/>
+        Ref: {!data.ReferenceCode}<br/>                        
+    </apex:repeat>
+    <br/><br/>
+    Products Offered: 
+    <apex:repeat value="{!jsonResponse.ProductsOffered}" var="data2">       
+        Name: {!data2.Name}<br/>
+        Code: {!data2.Code}<br/>
+        InterestRate: {!data2.InterestRate}<br/>
+        ReversionRate: {!data2.ReversionRate}<br/>
+        MonthlyRepayment: {!data2.MonthlyRepayment}<br/>                
+    </apex:repeat>
+    <br/><br/>
+    Errors: 
+    <apex:repeat value="{!jsonResponse.Errors}" var="data3">       
+        Error Message(s): {!data3}<br/>
+    </apex:repeat>
+    <br/><br/>        
+</apex:page>

@@ -1,0 +1,129 @@
+<apex:page showHeader="true" sidebar="false" controller="GoogleAdwordsPPCReport" action="{!isAuthenticatedWithAdwords}" readOnly="true" doctype="html-5.0">
+<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"/>
+<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"/>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.7.2/themes/ui-lightness/jquery-ui.css" type="text/css" media="all" />
+<apex:includeScript value="{!URLFOR($Resource.tablesorter, 'tablesorter-master/jquery.tablesorter.min.js')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.tablesorter, 'tablesorter-master/themes/green/style.css')}"/>
+<script type="text/javascript">
+    $j = jQuery.noConflict();
+    $j(document).ready(function () {
+        $j(".datepicker").val("");
+        $j("[id$=reporttable]").tablesorter({
+            sortList: [[6,1]],
+            theme: 'green'
+        });
+        $j('.datepicker').datepicker({
+            dateFormat: "dd/mm/yy"
+        });
+        if($j("[id$=date_range]").val() != "CUSTOM_DATE"){
+            $j('.datepicker').prop('disabled', true).val("");
+        }
+        $j("[id$=date_range]").on('change', function(){
+            if(this.value == "CUSTOM_DATE"){
+                $j('.datepicker').removeAttr('disabled');
+            } else {
+                $j('.datepicker').prop('disabled', true).val("");
+            }
+        });
+    });
+</script>
+    <apex:pageBlock >
+        <apex:pageMessages />
+        <apex:form >
+            <apex:pageBlockSection title="Select Report Timeframe" columns="2">
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Timeframe" for="date_range" />
+                    <apex:selectList id="date_range" multiselect="false" required="true" value="{!SelectedDateRange}" size="1">
+                        <apex:selectOptions value="{!RangeOptions}" />
+                    </apex:selectList>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Start Date" for="start_date" />
+                    <apex:inputText id="start_date" styleClass="datepicker" html-placeholder="dd/mm/yyyy" value="{!StartDate}" />
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem />
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="End Date" for="end_date" />
+                    <apex:inputText id="end_date" styleClass="datepicker" html-placeholder="dd/mm/yyyy" value="{!EndDate}"/>
+                </apex:pageBlockSectionItem>
+                <apex:pageBlockSectionItem >
+                    <apex:commandButton action="{!runReport}" value="Run Report"/>
+                </apex:pageBlockSectionItem>
+            </apex:pageBlockSection>
+            <apex:outputText value="{!ReportDetailString}" />
+        <apex:outputPanel id="report_panel" style="overflow:scroll;height:800px;width:1500px;" layout="block">
+            <apex:pageBlockTable value="{!Report}" var="row" id="reporttable">
+                <apex:column value="{!row.KeywordText}" headerValue="Keyword"/>
+                <apex:column value="{!row.CampaignName}" headerValue="Campaign"/>
+                <apex:column value="{!row.KeywordMatchType}" headerValue="Match Type"/>
+                <apex:column headerValue="Cost" >
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.Cost}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column value="{!row.Impressions}" headerValue="Impressions" />
+                <apex:column headerValue="Cost Per impression">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.CostPerImpression}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column value="{!row.Clicks}" headerValue="Clicks" />
+                <apex:column headerValue="Cost Per Click">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.AverageCpc}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column value="{!row.ApplicationCount}" headerValue="Applications Generated" />
+                <apex:column headerValue="Cost Per Application">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.CostPerApplication}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column value="{!row.ValidatedCount}" headerValue="Applications Validated" />
+                <apex:column headerValue="Cost Per Validation">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.CostPerValidation}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column value="{!row.PacksOutCount}" headerValue="Packs Out" />
+                <apex:column headerValue="Cost Per Pack Out">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.CostPerPackOut}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column headerValue="Packs Out Value">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.PacksOutValue}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column headerValue="Projected ROI">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.ProjectedROI}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column headerValue="Projected P&L">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.ProjectedProfitAndLoss}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column value="{!row.PaidOutCount}" headerValue="Applications Funded" />
+                <apex:column headerValue="Application Value">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.PaidOutValue}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column headerValue="Cost Per Funded">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.CostPerPaidOut}"/>
+                    </apex:outputText>
+                </apex:column>
+                <apex:column headerValue="P&L">
+                    <apex:outputText value="{0, number ,£########0.00}">
+                        <apex:param value="{!row.ProfitAndLoss}"/>
+                    </apex:outputText>
+                </apex:column>
+            </apex:pageBlockTable>
+        </apex:outputPanel>
+        </apex:form>
+    </apex:pageBlock>
+</apex:page>

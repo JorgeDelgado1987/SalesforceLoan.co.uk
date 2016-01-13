@@ -1,0 +1,266 @@
+<apex:page showHeader="false" sidebar="false" standardController="Application__c" extensions="Underwriting_wizard" title="Application Underwriting Wizard">
+<!--
+    15/10/2014 - Simon Parker
+-->
+
+<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"/>
+<apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jqueryui/1.10.3/jquery-ui.min.js"/>
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.7.2/themes/ui-lightness/jquery-ui.css" type="text/css" media="all" />
+<apex:includeScript value="{!URLFOR($Resource.tablesorter, 'tablesorter-master/jquery.tablesorter.min.js')}"/>
+<apex:stylesheet value="{!URLFOR($Resource.tablesorter, 'tablesorter-master/themes/green/style.css')}"/>
+
+<script type="text/javascript">
+    $j = jQuery.noConflict();
+    $j(document).ready(function () {
+        sortTables();
+    });
+
+    function sortTables(){
+        $j("[id$=passedtable]").tablesorter({
+            sortList: [[6,0]],
+            headers: {
+                0: { sorter: false }
+            }
+        });
+        $j("[id$=manualreferraltable").tablesorter();
+        $j("[id$=failedplanstable]").tablesorter();
+        //$j("[id$=failedratestable]").tablesorter();
+        //$j("[id$=failedrepaymenttable]").tablesorter();
+    }
+
+    function showSpinner(){
+        $j('#spinner').show();
+    }
+
+    function hideSpinner(){
+        $j('#spinner').hide();
+    }
+
+</script>
+<style type="text/css">
+    .ct{
+        text-align: center;
+    }
+
+    table.tablesorter.passed tr {
+        background-color: #daffcd;
+    }
+
+    table.tablesorter.failed tr{
+        background-color: #ffc3c7;
+    }
+</style>
+    <apex:form >
+        <apex:pageBlock title="Application Underwriting Wizard" id="main_block">
+            <apex:pageMessages />
+            <apex:pageBlockSection columns="1">
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Application:"/>
+                    <apex:outputLink value="/{!Application__c.Id}">{!Application__c.Name}</apex:outputLink>
+                </apex:pageBlockSectionItem>
+                <apex:pageMessage severity="info" summary="Credit Report Data has not been retrieved for this customer." title="No Credit Report Data" detail="Please use credit search page to retrieve the data" strength="2" rendered="{!ISBLANK(Application__c.CRS_Report_Id__c)}">
+                    &nbsp;&nbsp;<apex:commandButton action="{!goToCreditSearch}" value="Go To Credit Search" />
+                </apex:pageMessage>
+                <apex:pageMessage severity="info" summary="Customer currnetly has an active quote." title="Active Quote" detail="Creating a new quote will replace the existing active quote. {!IF(ExistingActiveQuote.Lender_Fee__r.Is_Integrated__c,' <br/>If the customer wishes to continue with this quote it can be submitted directly to the lender.','')} " strength="2" rendered="{!HasActiveQuote}" escape="false">
+                    &nbsp;&nbsp;<apex:commandButton action="{!goToLenderSubmission}" value="Submit To Lender" rendered="{!HasActiveQuote && ExistingActiveQuote.Lender_Fee__r.Is_Integrated__c}"/>
+                </apex:pageMessage>
+                <apex:outputPanel id="setupbutton" >
+                    <apex:commandButton value="Submit to Decision Engine" action="{!submitToDecisionEngine}" onclick="showSpinner()"/>
+                    <div id="spinner" style="display:none">
+                        <p align="center" style='{font-family:"Arial", Helvetica, sans-serif; font-size:20px;}'>
+                            <apex:image value="/img/loading.gif" />&nbsp;Please wait
+                        </p>
+                    </div>
+                </apex:outputPanel>
+            </apex:pageBlockSection>
+            <apex:pageBlockSection title="Decision Engine Response" columns="1" rendered="{!showResults}">
+                <apex:outputText value="Submitted Amount = {0, number,£###,###,##0.00}">
+                    <apex:param value="{!Application__c.Loan_Amount__c}"/>
+                </apex:outputText>
+                <apex:outputText value="Loan Term = {!Application__c.Loan_Term_Months__c}"/>
+                <apex:outputText value="Broker Fee = {0, number,£###,###,##0.00}">
+                    <apex:param value="{!Application__c.Broker_Fee__c}"/>
+                </apex:outputText>
+            </apex:pageBlockSection>
+            <apex:pageBlockSection title="Passed Plans" columns="1" rendered="{!showResults}">
+                <apex:selectList value="{!PassedPlans.SelectedLender}" multiselect="false" size="1"  label="Filter by Lender:" rendered="{!Summary.PassedCount > 0}" >
+                    <apex:actionSupport event="onchange" action="{!PassedPlans.filterRows}" reRender="passedtable" oncomplete="sortTables();"/>
+                    <apex:selectOptions value="{!PassedPlans.LenderOptions}"/>
+                </apex:selectList>
+                <apex:outputpanel style="overflow:scroll;height:200px;" layout="block" rendered="{!Summary.PassedCount > 0}" >
+                    <apex:pageBlockTable value="{!PassedPlans.Plans}" var="plan" id="passedtable" styleClass="tablesorter passed" headerClass="header" >
+                        <apex:column headerValue="Select">
+                            <apex:commandButton action="{!plan.createQuote}" value="Select"/>
+                        </apex:column>
+                        <apex:column headerValue="Lender">
+                            <apex:outputText value="{!plan.RowDetail.LenderName}"/>
+                        </apex:column>
+                        <apex:column headerValue="Plan">
+                            <apex:outputText value="{!plan.RowDetail.PlanName}"/>
+                        </apex:column>
+                        <apex:column headerValue="Calculated LTV">
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.Ltv / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Max LTV">
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.MaxLTV / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Plan Commission %">
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.PlanCommission  / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Rate %">
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.Rate  / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Rate Type"  >
+                            <apex:outputText value="{!plan.RowDetail.RateType}"/>
+                        </apex:column>
+                        <apex:column headerValue="Est. Monthly Payment">
+                            <apex:outputText value="{0, number ,£###,###,##0.00}">
+                                <apex:param value="{!plan.RowDetail.MonthlyPaymentEstimate}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Max Avalable Loan Amount">
+                            <apex:outputText value="{0, number ,£###,###,##0.00}">
+                                <apex:param value="{!plan.RowDetail.MaxAvailableLoanAmount}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Lender Fee">
+                            <apex:outputText value="{0, number,£###,###,##0.00}">
+                                <apex:param value="{!plan.RowDetail.LenderFee}"/>
+                            </apex:outputText>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:outputPanel>
+                <apex:pageMessage severity="info" title="No Records to Display" strength="1" rendered="{!Summary.PassedCount == 0}" />
+            </apex:pageBlockSection>
+            <apex:pageBlockSection title="Plans Requiring Manual Referral" columns="1" rendered="{!showResults}">
+                <apex:selectList value="{!ManualReferralPlans.SelectedLender}" multiselect="false" size="1"  label="Filter by Lender:" rendered="{!Summary.ManualReferralCount > 0}" >
+                    <apex:actionSupport event="onchange" action="{!ManualReferralPlans.filterRows}" reRender="manualreferralplanstable" oncomplete="sortTables();" />
+                    <apex:selectOptions value="{!ManualReferralPlans.LenderOptions}"/>
+                </apex:selectList>
+                <apex:outputpanel style="overflow:scroll;height:200px;" layout="block" rendered="{!Summary.ManualReferralCount > 0}">
+                    <apex:pageBlockTable value="{!ManualReferralPlans.Plans}" var="plan" id="manualreferralplanstable" styleClass="tablesorter failed" headerClass="header">
+                        <apex:column headerValue="Lender" value="{!plan.RowDetail.LenderName}"/>
+                        <apex:column headerValue="Plan" value="{!plan.RowDetail.PlanName}"/>
+                        <apex:column headerValue="Rate %">
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.Rate  / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Plan Type" value="{!plan.RowDetail.RateType}"/>
+                        <apex:column headerValue="Reasons for Failure" value="{!plan.RowDetail.FailureReasons}" width="300"/>
+                        <apex:column headerValue="Plan Commission %" >
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.PlanCommission / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Avalable Loan Amount">
+                            <apex:outputText value="{0, number ,£###,###,##0.00}">
+                                <apex:param value="{!plan.RowDetail.MinAvailableLoanAmount}"/>
+                            </apex:outputText>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:outputPanel>
+                <apex:pageMessage severity="info" title="No Records to Display" strength="1" rendered="{!Summary.ManualReferralCount == 0}" />
+            </apex:pageBlockSection>
+            <apex:pageBlockSection title="Failed Plans" columns="1" rendered="{!showResults}">
+                <apex:selectList value="{!FailedPlans.SelectedLender}" multiselect="false" size="1"  label="Filter by Lender:" rendered="{!Summary.PlanLevelFailedCount > 0 || Summary.RateLevelFailedCount > 0 || Summary.RepaymentOptionLevelFailedCount > 0}">
+                    <apex:actionSupport event="onchange" action="{!FailedPlans.filterRows}" reRender="failedtable" oncomplete="sortTables();" />
+                    <apex:selectOptions value="{!FailedPlans.LenderOptions}"/>
+                </apex:selectList>
+                <apex:outputpanel style="overflow:scroll;height:200px;" layout="block" id="failedtable" rendered="{!Summary.PlanLevelFailedCount > 0 || Summary.RateLevelFailedCount > 0 || Summary.RepaymentOptionLevelFailedCount > 0}">
+                    <apex:pageBlockTable value="{!FailedPlans.Plans}" var="plan" id="failedplanstable" styleClass="tablesorter failed" headerClass="header">
+                        <apex:column headerValue="Lender" value="{!plan.RowDetail.LenderName}"/>
+                        <apex:column headerValue="Plan" value="{!plan.RowDetail.PlanName}"/>
+                        <apex:column headerValue="Rate %">
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.Rate  / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Plan Type" value="{!plan.RowDetail.RateType}"/>
+                        <apex:column headerValue="Reasons for Failure" value="{!plan.RowDetail.FailureReasons}" width="300"/>
+                        <apex:column headerValue="Failed At" value="{!plan.RowDetail.FailureType}"/>
+                        <apex:column headerValue="Plan Commission %" >
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.PlanCommission / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Avalable Loan Amount">
+                            <apex:outputText value="{0, number ,£###,###,##0.00}">
+                                <apex:param value="{!plan.RowDetail.MinAvailableLoanAmount}"/>
+                            </apex:outputText>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:outputPanel>
+                <apex:pageMessage severity="info" title="No Records to Display" strength="1" rendered="{!Summary.PlanLevelFailedCount == 0 && Summary.RateLevelFailedCount == 0 && Summary.RepaymentOptionLevelFailedCount == 0}" />
+            </apex:pageBlockSection>
+            <!-- <apex:pageBlockSection title="Failed Rates" columns="1" rendered="{!showResults}">
+                <apex:selectList value="{!FailedRates.SelectedLender}" multiselect="false" size="1"  label="Filter by Lender:" rendered="{!Summary.RateLevelFailedCount > 0}">
+                    <apex:actionSupport event="onchange" action="{!FailedRates.filterRows}" reRender="failedratestable" />
+                    <apex:selectOptions value="{!FailedRates.LenderOptions}"/>
+                </apex:selectList>
+                <apex:outputpanel style="overflow:scroll;height:200px;" layout="block" rendered="{!Summary.RateLevelFailedCount > 0}">
+                    <apex:pageBlockTable value="{!FailedRates.Plans}" var="plan" id="failedratestable" styleClass="tablesorter failed" headerClass="header">
+                        <apex:column headerValue="Lender" value="{!plan.RowDetail.LenderName}"/>
+                        <apex:column headerValue="Plan" value="{!plan.RowDetail.PlanName}"/>
+                        <apex:column headerValue="Rate %">
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.Rate  / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Plan Type" value="{!plan.RowDetail.RateType}"/>
+                        <apex:column headerValue="Reasons for Failure" value="{!plan.RowDetail.FailureReasons}" width="300"/>
+                        <apex:column headerValue="Plan Commission %" >
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.PlanCommission / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Avalable Loan Amount">
+                            <apex:outputText value="{0, number ,£###,###,##0.00}">
+                                <apex:param value="{!plan.RowDetail.MinAvailableLoanAmount}"/>
+                            </apex:outputText>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:outputPanel>
+                <apex:pageMessage severity="info" title="No Records to Display" strength="1" rendered="{!Summary.RateLevelFailedCount == 0}" />
+            </apex:pageBlockSection>
+            <apex:pageBlockSection title="Failed Repayment Types" columns="1" rendered="{!showResults}">
+                <apex:selectList value="{!FailedRepaymentOptions.SelectedLender}" multiselect="false" size="1"  label="Filter by Lender:" rendered="{!Summary.RepaymentOptionLevelFailedCount > 0}" >
+                    <apex:actionSupport event="onchange" action="{!FailedRepaymentOptions.filterRows}" reRender="failedrepaymenttable" />
+                    <apex:selectOptions value="{!FailedRepaymentOptions.LenderOptions}"/>
+                </apex:selectList>
+                <apex:outputpanel style="overflow:scroll;height:200px;" layout="block" rendered="{!Summary.RepaymentOptionLevelFailedCount > 0}" >
+                    <apex:pageBlockTable value="{!FailedRepaymentOptions.Plans}" var="plan" id="failedrepaymenttable" styleClass="tablesorter failed" headerClass="header">
+                        <apex:column headerValue="Lender" value="{!plan.RowDetail.LenderName}"/>
+                        <apex:column headerValue="Plan" value="{!plan.RowDetail.PlanName}"/>
+                        <apex:column headerValue="Rate %">
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.Rate  / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Plan Type" value="{!plan.RowDetail.RateType}"/>
+                        <apex:column headerValue="Reasons for Failure" value="{!plan.RowDetail.FailureReasons}" width="300"/>
+                        <apex:column headerValue="Plan Commission %" >
+                            <apex:outputText value="{0, number, ###.##%}">
+                                <apex:param value="{!plan.RowDetail.PlanCommission / 100}"/>
+                            </apex:outputText>
+                        </apex:column>
+                        <apex:column headerValue="Avalable Loan Amount">
+                            <apex:outputText value="{0, number ,£###,###,##0.00}">
+                                <apex:param value="{!plan.RowDetail.MinAvailableLoanAmount}"/>
+                            </apex:outputText>
+                        </apex:column>
+                    </apex:pageBlockTable>
+                </apex:outputPanel>
+                <apex:pageMessage severity="info" title="No Records to Display" strength="1" rendered="{!Summary.RepaymentOptionLevelFailedCount == 0}" />
+            </apex:pageBlockSection> -->
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>

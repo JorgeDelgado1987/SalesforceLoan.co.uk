@@ -1,0 +1,58 @@
+<!-- 
+// *******************************************
+// Developer:   Eddie Bates
+// Name:        UploadAttachment
+// Created:     12/09/2014
+// Description: JIRA SEC-52. It Uploads a PDF/JPG file to both Outstanding_Items__c and Application__c Objects.
+// *******************************************
+/* +-----------------------------------------------------------------------------------------------------------------------------+
+   | Updates                                                                                                 					 |
+   |-----------------------------------------------------------------------------------------------------------------------------|
+   | Developer    Date    Description                                               											 |
+   +-----------------------------------------------------------------------------------------------------------------------------+
+
+   |-----------------------------------------------------------------------------------------------------------------------------|
+*/ -->
+
+<apex:page standardController="Outstanding_Items__c" tabStyle="Outstanding_Items__c" extensions="UploadAttachmentController">
+    <apex:sectionHeader title="{!Outstanding_Items__c.Name}"
+    subtitle="Attach File"></apex:sectionHeader>
+    <apex:form id="form_Upload">
+        <apex:pageBlock >
+            <apex:pageBlockButtons >
+                <apex:commandButton action="{!back}"
+                value="Back to {!Outstanding_Items__c.Name}">
+                </apex:commandButton>
+                <apex:commandButton action="{!back}" value="Cancel">
+                </apex:commandButton>
+            </apex:pageBlockButtons>
+			
+            <apex:pageMessages ></apex:pageMessages>
+			
+            <apex:pageBlockSection columns="1">
+				
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="File" for="file_File">
+                    </apex:outputLabel>
+                    <apex:inputFile id="file_File" value="{!fileBody}"
+                    filename="{!fileName}"></apex:inputFile>
+                </apex:pageBlockSectionItem>
+                
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Description" for="description">
+                    </apex:outputLabel>
+                    <apex:inputTextarea id="description" value="{!description}"
+                    rows="4" cols="50"></apex:inputTextarea>
+                </apex:pageBlockSectionItem>
+				
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="" for="uploadBtn">
+                    </apex:outputLabel>
+                    <apex:commandButton id="uploadBtn" value="Attach File"
+                    action="{!processUpload}"></apex:commandButton>
+                </apex:pageBlockSectionItem>
+				
+            </apex:pageBlockSection>
+        </apex:pageBlock>
+    </apex:form>
+</apex:page>

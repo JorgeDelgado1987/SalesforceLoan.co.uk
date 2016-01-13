@@ -1,0 +1,96 @@
+<apex:page showHeader="false" sidebar="false" controller="ApplicationWaterfallReportCont" title="Application Waterfall Report" tabStyle="Application__c">
+    <apex:form id="MainForm">
+        <apex:pageMessages />
+        <apex:pageMessage rendered="{!DisplayIgnoredMessage}" severity="info" summary="Some rows are ignored. To display all rows refresh the page." strength="2"/>
+        <apex:pageBlock id="Filters" mode="edit">
+            <apex:pageBlockSection columns="2">
+                <apex:selectList value="{!SelectedDateField}" label="Filter by date" size="1">
+                    <apex:selectOption itemValue="Application" itemLabel="Application created date"/>
+                    <apex:selectOption itemValue="Stage" itemLabel="Stage History created date"/>
+                </apex:selectList>
+
+                <apex:selectList value="{!SelectedFilterField}" label="Filter by" size="1" onchange="updateFilterOptionsListJS();">
+                    <apex:selectOptions value="{!GroupByOptions}"/>
+                </apex:selectList>
+
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Start date"/>
+                    <apex:inputField value="{!DateHolderApp.Cancelled_Date__c}"/>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="Values"/>
+                    <apex:outputPanel layout="block" style="position:absolute;">
+                        <apex:selectList value="{!SelectedFilterOptions}" size="5" multiselect="true">
+                            <apex:selectOptions value="{!FilterOptions}"/>
+                        </apex:selectList>
+                    </apex:outputPanel>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem >
+                    <apex:outputLabel value="End date"/>
+                    <apex:inputField value="{!DateHolderApp.Completed_Date__c}"/>
+                </apex:pageBlockSectionItem>
+
+                <apex:pageBlockSectionItem />
+
+                <apex:selectList value="{!SelectedSortField}" label="Group by" size="1">
+                    <apex:selectOptions value="{!GroupByOptions}"/>
+                </apex:selectList>
+            </apex:pageBlockSection>
+
+            <apex:pageBlockButtons location="bottom">
+                <apex:actionStatus id="ShowReportStatus">
+                    <apex:facet name="stop">
+                        <apex:commandButton value="Show Report" action="{!loadApplications}" status="ShowReportStatus" reRender="MainForm"/>
+                    </apex:facet>
+                    <apex:facet name="start">
+                        <apex:outputPanel >
+                            <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                            <apex:commandButton value="Loading..." disabled="true"/>
+                        </apex:outputPanel>
+                    </apex:facet>
+                </apex:actionStatus>
+
+                <apex:actionStatus id="HidingStatus">
+                    <apex:facet name="stop">
+                        <apex:commandButton value="Hide Selected" oncomplete="hideSelected();" status="HidingStatus"/>
+                    </apex:facet>
+                    <apex:facet name="start">
+                        <apex:outputPanel >
+                            <apex:image value="/img/loading32.gif" style="height:20px; vertical-align:middle;"/>
+                            <apex:commandButton value="Loading..." disabled="true"/>
+                        </apex:outputPanel>
+                    </apex:facet>
+                </apex:actionStatus>
+            </apex:pageBlockButtons>
+        </apex:pageBlock>
+        <apex:pageBlock >
+            <apex:dynamicComponent componentValue="{!Table}"/>
+        </apex:pageBlock>
+
+        <apex:actionFunction action="{!null}" name="updateFilterOptionsListJS" reRender="Filters"/>
+        <apex:actionFunction action="{!hideSelectedRows}" name="hideSelectedRowsJS" reRender="MainForm">
+            <apex:param name="IdString" value="" assignTo="{!SelectedRowsIdsToIgnore}"/>
+        </apex:actionFunction>
+    </apex:form>
+
+    <apex:includeScript value="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"/>
+    <script>
+        $j = jQuery.noConflict();
+        function hideSelected(){
+            var id_string = '';
+            $j(':checkbox').each(function() {
+                if(this.checked){
+                    id_string += this.id + ',';
+                }
+            });
+            hideSelectedRowsJS(id_string);
+        }
+    </script>
+    <style>
+        .fixedTD{
+            position: fixed;
+        }
+    </style>
+</apex:page>

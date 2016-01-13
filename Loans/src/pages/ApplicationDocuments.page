@@ -1,0 +1,21 @@
+<apex:page standardController="Application__c" showHeader="false" sidebar="false" extensions="ApplicationDocuments" title="Application Documents">
+	<apex:pageBlock rendered="{!accessgranted}">
+		<apex:pageBlockSection >
+			<apex:outputText value="Application : {!Application__c.Name}" />
+			<BR/><BR/>
+			<apex:outputText value="Loan Amount : {!Application__c.Loan_Amount__c}"/>
+			<BR/><BR/>
+			<apex:outputText value="Loan Team (months) : {!Application__c.Loan_Term_Months__c}"/>
+			<BR/><BR/>
+			<apex:outputText value="Primary Applicant : {!primaryApplicantName}"/>
+			<BR/><BR/>
+		</apex:pageBlockSection>
+		<apex:pageBlockSection title="Your application documents">
+			<apex:pageBlockTable value="{!applicationAttachments}" var="att">
+				<apex:column value="{!att.Description__c}" />
+				<apex:column value="{!att.View__c}"/>
+			</apex:pageBlockTable>
+		</apex:pageBlockSection>
+	</apex:pageBlock>
+	<apex:outputText value="You do not have permsission to access this page" rendered="{!!accessgranted}" />
+</apex:page>
